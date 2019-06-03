@@ -5,7 +5,7 @@ authors = ["Domenico Shura <shura1991@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-objc = "0.2.6"
+core-foundation-sys = "0.6.2"
 core-foundation = "0.6.4"
-objc-foundation = "0.1.1"
+array_tool = "1.0.3"
 libc = "0.2.58"
