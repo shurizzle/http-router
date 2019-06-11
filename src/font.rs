@@ -1,6 +1,5 @@
 use core_foundation::base::TCFType;
 use core_foundation::string::CFStringRef;
-use core_foundation::url::CFURL;
 use core_text::font::{CTFont, CTFontUIFontType, CTFontRef, kCTFontApplicationFontType};
 use core_graphics::base::CGFloat;
 
@@ -16,6 +15,7 @@ extern "C" {
     ) -> CTFontRef;
 }
 
+#[allow(dead_code)]
 pub fn get_default_font() -> Option<CTFont> {
     unsafe {
         let ctfont_ref =
@@ -29,14 +29,17 @@ pub fn get_default_font() -> Option<CTFont> {
     }
 }
 
+#[allow(dead_code)]
 pub fn get_default_font_name() -> Option<String> {
     Some(get_default_font()?.display_name().to_string())
 }
 
+#[allow(dead_code)]
 pub fn get_default_font_path() -> Option<PathBuf> {
     get_default_font()?.url()?.to_path()
 }
 
+#[allow(dead_code)]
 pub fn get_default_font_data() -> Option<Vec<u8>> {
     let mut buffer = Vec::new();
     match File::open(get_default_font_path()?).and_then(|mut f| f.read_to_end(&mut buffer)) {
