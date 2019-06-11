@@ -7,5 +7,7 @@ edition = "2018"
 [dependencies]
 core-foundation-sys = "0.6.2"
 core-foundation = "0.6.4"
+core-graphics = "0.17.3"
+core-text = "13.2.0"
 array_tool = "1.0.3"
 libc = "0.2.58"

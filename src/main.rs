@@ -1,16 +1,21 @@
 extern crate core_foundation;
+extern crate core_text;
+extern crate core_graphics;
+
 extern crate array_tool;
 extern crate core_foundation_sys;
 extern crate libc;
 
-use core_foundation::array::{ CFArray, CFArrayRef };
-use core_foundation::string::{ CFString, CFStringRef };
-use core_foundation::base::{ TCFType, ToVoid };
-use core_foundation::error::{ CFErrorRef };
-use core_foundation::url::{ CFURL, CFURLRef };
+use core_foundation::array::{CFArray, CFArrayRef};
+use core_foundation::string::{CFString, CFStringRef};
+use core_foundation::base::{TCFType, ToVoid};
+use core_foundation::error::CFErrorRef;
+use core_foundation::url::{CFURL, CFURLRef};
 
-use core_foundation_sys::base::{ CFAllocatorRef, OSStatus };
+use core_foundation_sys::base::{CFAllocatorRef, OSStatus};
 use libc::c_void;
+
+mod font;
 
 pub type OptionBits = u32;
 
@@ -139,17 +144,30 @@ pub struct LSLaunchURLSpec {
 #[link(name = "CoreServices", kind = "framework")]
 extern "C" {
     fn LSCopyAllHandlersForURLScheme(inURLScheme: CFStringRef) -> CFArrayRef;
-    fn LSCopyApplicationURLsForBundleIdentifier(inBundleIdentifier: CFStringRef, outError: *mut CFErrorRef) -> CFArrayRef;
+    fn LSCopyApplicationURLsForBundleIdentifier(
+        inBundleIdentifier: CFStringRef,
+        outError: *mut CFErrorRef,
+    ) -> CFArrayRef;
     fn LSCopyDisplayNameForURL(inURL: CFURLRef, outDisplayName: *mut CFStringRef) -> OSStatus;
-    fn LSOpenFromURLSpec(inLaunchSpec: *const LSLaunchURLSpec, outLaunchedURL: *mut CFURLRef) -> OSStatus;
-    fn CFURLCreateWithString(allocator: CFAllocatorRef, urlString: CFStringRef, baseURL: CFURLRef) -> CFURLRef;
+    fn LSOpenFromURLSpec(
+        inLaunchSpec: *const LSLaunchURLSpec,
+        outLaunchedURL: *mut CFURLRef,
+    ) -> OSStatus;
+    fn CFURLCreateWithString(
+        allocator: CFAllocatorRef,
+        urlString: CFStringRef,
+        baseURL: CFURLRef,
+    ) -> CFURLRef;
 }
 
 fn url(url: &str) -> CFURL {
     let url = CFString::new(url);
     unsafe {
-        CFURL::wrap_under_create_rule(
-            CFURLCreateWithString(std::ptr::null(), url.as_concrete_TypeRef(), std::ptr::null()))
+        CFURL::wrap_under_create_rule(CFURLCreateWithString(
+            std::ptr::null(),
+            url.as_concrete_TypeRef(),
+            std::ptr::null(),
+        ))
     }
 }
 
@@ -196,7 +214,10 @@ pub struct Browser {
 
 impl Browser {
     pub fn open<T: Openable + ?Sized>(&self, urls: &T) -> Result<(), OSStatus> {
-        let orig = urls.into_openable().iter().map(|v| url(v)).collect::<Vec<CFURL>>();
+        let orig = urls.into_openable()
+            .iter()
+            .map(|v| url(v))
+            .collect::<Vec<CFURL>>();
         let urls = CFArray::<CFURL>::from_CFTypes(&orig[..]);
 
         let open_struct = LSLaunchURLSpec {
@@ -207,15 +228,9 @@ impl Browser {
             _unused2: ::std::ptr::null(),
         };
 
-        let status = unsafe {
-            LSOpenFromURLSpec(&open_struct, std::ptr::null_mut())
-        };
+        let status = unsafe { LSOpenFromURLSpec(&open_struct, std::ptr::null_mut()) };
 
-        if status == 0 {
-            Ok(())
-        } else {
-            Err(status)
-        }
+        if status == 0 { Ok(()) } else { Err(status) }
     }
 }
 
@@ -225,13 +240,17 @@ fn get_app_url(name: &str) -> Option<CFURL> {
     unsafe {
         let names = LSCopyApplicationURLsForBundleIdentifier(
             name.as_concrete_TypeRef(),
-            std::ptr::null_mut() as *mut CFErrorRef
+            std::ptr::null_mut() as *mut CFErrorRef,
         );
 
         if names.to_void().is_null() {
             None
         } else {
-            Some(CFArray::<CFURL>::wrap_under_create_rule(names).get(0)?.clone())
+            Some(
+                CFArray::<CFURL>::wrap_under_create_rule(names)
+                    .get(0)?
+                    .clone(),
+            )
         }
     }
 }
@@ -261,7 +280,9 @@ macro_rules! bundle_ids_for_mime_type {
         let mime = CFString::new(concat!("public.", stringify!($type)));
 
         unsafe {
-            let bundles = LSCopyAllRoleHandlersForContentType(mime.as_concrete_TypeRef(), LsRoleMask::VIEWER);
+            let bundles = LSCopyAllRoleHandlersForContentType(
+                mime.as_concrete_TypeRef(),
+                LsRoleMask::VIEWER);
 
             if bundles.to_void().is_null() {
                 None
@@ -295,26 +316,18 @@ macro_rules! intersect {
 }
 
 fn get_browsers_bundle_identifiers() -> Option<Vec<String>> {
-    intersect!(
-        bundle_ids_for_scheme!(http),
-        bundle_ids_for_scheme!(https)
-    )
+    intersect!(bundle_ids_for_scheme!(http), bundle_ids_for_scheme!(https))
 }
 
 fn get_app_name(app_path: &CFURL) -> Option<String> {
     let mut display_name_ref: CFStringRef = unsafe { std::mem::zeroed() };
 
-    let status = unsafe {
-        LSCopyDisplayNameForURL(
-            app_path.as_concrete_TypeRef(),
-            &mut display_name_ref
-        )
-    };
+    let status =
+        unsafe { LSCopyDisplayNameForURL(app_path.as_concrete_TypeRef(), &mut display_name_ref) };
 
     if status == 0 {
-        let display_name_ref: CFString = unsafe {
-            CFString::wrap_under_create_rule(display_name_ref)
-        };
+        let display_name_ref: CFString =
+            unsafe { CFString::wrap_under_create_rule(display_name_ref) };
 
         Some(display_name_ref.to_string())
     } else {
@@ -323,27 +336,31 @@ fn get_app_name(app_path: &CFURL) -> Option<String> {
 }
 
 fn get_browsers() -> Option<Vec<Browser>> {
-    Some(get_browsers_bundle_identifiers()?.iter()
-        .map(|val| {
-            let path = get_app_url(&*val)?;
-            let name = get_app_name(&path)?;
-            Some(Browser {
-                name: name,
-                bundle_id: val.clone(),
-                path: path,
+    Some(
+        get_browsers_bundle_identifiers()?
+            .iter()
+            .map(|val| {
+                let path = get_app_url(&*val)?;
+                let name = get_app_name(&path)?;
+                Some(Browser {
+                    name: name,
+                    bundle_id: val.clone(),
+                    path: path,
+                })
             })
-        })
-        .filter(|val| val.is_some())
-        .map(|val| val.unwrap())
-        .collect())
+            .filter(|val| val.is_some())
+            .map(|val| val.unwrap())
+            .collect(),
+    )
 }
 
 fn main() {
-    match get_browsers() {
-        None => println!("None?"),
-        Some(browsers) => {
-            println!("{:#?}", browsers);
-            browsers[1].open(&vec!["http://www.google.it/", "https://news.ycombinator.com/"]);
-        }
-    };
+    // match get_browsers() {
+    //     None => println!("None?"),
+    //     Some(browsers) => {
+    //         println!("{:#?}", browsers);
+    //         browsers[1].open(&vec!["http://www.google.it/", "https://news.ycombinator.com/"]);
+    //     }
+    // };
+    println!("{:?}", font::get_default_font_name());
 }
