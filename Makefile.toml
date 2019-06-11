@@ -1,0 +1,6 @@
+[tasks.format]
+description = "Runs the cargo rustfmt plugin."
+category = "Development"
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--force"]
