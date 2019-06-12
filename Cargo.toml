@@ -11,3 +11,7 @@ core-graphics = "0.17.3"
 core-text = "13.2.0"
 array_tool = "1.0.3"
 libc = "0.2.58"
+
+objc = "0.2.6"
+objc_id = "0.1.1"
+objc-foundation = "0.1.1"

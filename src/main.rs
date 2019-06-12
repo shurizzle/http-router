@@ -1,9 +1,14 @@
+#[macro_use]
+extern crate objc;
+extern crate objc_id;
+extern crate objc_foundation;
+
+extern crate core_foundation_sys;
 extern crate core_foundation;
 extern crate core_text;
 extern crate core_graphics;
 
 extern crate array_tool;
-extern crate core_foundation_sys;
 extern crate libc;
 
 use core_foundation::array::{CFArray, CFArrayRef};
@@ -16,6 +21,7 @@ use core_foundation_sys::base::OSStatus;
 
 mod font;
 mod open;
+mod app;
 
 use open::{LSLaunchFlags, Openable};
 
@@ -227,14 +233,15 @@ fn get_browsers() -> Option<Vec<Browser>> {
 }
 
 fn main() {
-    match get_browsers() {
-        None => println!("None?"),
-        Some(browsers) => {
-            println!("{:#?}", browsers);
-            browsers[5].open(&vec![
-                "http://www.google.it/",
-                "https://news.ycombinator.com/",
-            ]);
-        }
-    };
+    // match get_browsers() {
+    //     None => println!("None?"),
+    //     Some(browsers) => {
+    //         println!("{:#?}", browsers);
+    //         browsers[5].open(&vec![
+    //             "http://www.google.it/",
+    //             "https://news.ycombinator.com/",
+    //         ]);
+    //     }
+    // };
+    println!("{}", app::url_from_appname("Google Chrome"));
 }
